@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel — Local File Inspector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          base: { 950: '#090d16', 900: '#0d1117', 850: '#111623', 800: '#161d2e' },
+          line: { 800: '#1e2536', 700: '#2a3348' },
+          accent: { DEFAULT: '#5eead4', dim: '#2dd4bf' }
+        },
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+          ar: ['Tajawal', 'Cairo', 'ui-sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+        }
+      }
+    }
+  };
+</script>
+<style>
+  html.lang-ar body, html.lang-ar .font-ar-target { font-family: 'Tajawal', 'Cairo', sans-serif; }
+  body { transition: background-color .25s ease, color .25s ease; }
+  .glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    backdrop-filter: blur(14px);
+  }
+  .light .glass { background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01)); }
+  .glow-ring { box-shadow: 0 0 0 1px rgba(94,234,212,0.15), 0 0 40px -12px rgba(94,234,212,0.25); }
+  .drop-active { box-shadow: 0 0 0 1px rgba(94,234,212,0.4), 0 0 60px -8px rgba(94,234,212,0.45); }
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+  .light .grid-bg {
+    background-image:
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+  details[open] summary .chev { transform: rotate(180deg); }
+  .chev { transition: transform .2s ease; }
+  body { background-color: #090d16; color: #f1f5f9; }
+  body.light { background-color: #fbfbfd; color: #0f172a; }
+  body.light header, body.light footer, body.light .border-line-800 { border-color: rgba(15,23,42,0.10); }
+  body.light .text-slate-400 { color: #64748b; }
+  body.light .text-slate-500 { color: #64748b; }
+  body.light .text-slate-300 { color: #334155; }
+  body.light .text-slate-200 { color: #1e293b; }
+  body.light .bg-base-900 { background-color: #f1f5f9; }
+  body.light .bg-base-800 { background-color: #e2e8f0; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col grid-bg">
+
+<header class="w-full border-b border-line-800 px-5 sm:px-8 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-2.5">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-accent flex-shrink-0">
+      <path d="M12 2L3 6v6c0 5.25 3.6 9.74 9 11 5.4-1.26 9-5.75 9-11V6l-9-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="font-semibold tracking-tight text-[15px]" data-i18n="siteTitle">Sentinel</span>
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="langToggle" class="text-xs font-medium px-3 py-1.5 rounded-full border border-line-800 hover:border-line-700 hover:bg-white/5 transition text-slate-300">EN / عربي</button>
+    <button id="themeToggle" class="w-8 h-8 grid place-items-center rounded-full border border-line-800 hover:border-line-700 hover:bg-white/5 transition text-slate-300">
+      <span id="themeIcon">☀️</span>
+    </button>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-2xl mx-auto px-5 sm:px-8 py-10 sm:py-14 space-y-12">
+
+  <div class="text-center space-y-3">
+    <div class="inline-flex items-center gap-1.5 text-[11px] font-medium text-accent/90 bg-accent/10 border border-accent/20 rounded-full px-3 py-1">
+      <span class="w-1.5 h-1.5 rounded-full bg-accent pulse-dot"></span>
+      <span data-i18n="liveBadge">Serverless · Runs on-device</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight" data-i18n="heading">Inspect any file, privately.</h1>
+    <p class="text-[15px] text-slate-400 max-w-md mx-auto leading-relaxed" data-i18n="subheading">
+      Hashing happens entirely in your browser. Your file never leaves this device — only its fingerprint does.
+    </p>
+  </div>
+
+  <div id="dropZone" class="glass glow-ring rounded-2xl px-6 py-14 sm:py-16 text-center cursor-pointer border border-line-800 transition-all duration-200 group">
+    <svg id="dropIcon" width="46" height="46" viewBox="0 0 24 24" fill="none" class="mx-auto mb-4 text-accent/80 group-hover:text-accent transition-colors">
+      <path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p class="font-medium text-[15px]" data-i18n="dropText">Drop your file here or click to browse</p>
+    <p class="text-xs text-slate-500 mt-2" data-i18n="dropHint">No file size limits — inspect any size locally</p>
+    <input id="fileInput" type="file" class="hidden">
+  </div>
+
+  <details class="glass rounded-xl border border-line-800 group">
+    <summary class="list-none cursor-pointer px-4 py-3 flex items-center justify-between text-sm text-slate-300 select-none">
+      <span class="flex items-center gap-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" class="text-slate-500">
+          <path d="M15 7a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M9.5 10.5L3 17v3h3l6.5-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="apiKeyLabel">VirusTotal API key (optional)</span>
+      </span>
+      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </summary>
+    <div class="px-4 pb-4 space-y-2">
+      <input id="apiKey" type="password" data-i18n-placeholder="apiKeyPlaceholder"
+        class="w-full bg-base-900 border border-line-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/40">
+      <p class="text-xs text-slate-500" data-i18n="apiKeyHint">Used only to raise your VirusTotal query limit — never required.</p>
+    </div>
+  </details>
+
+  <div id="progressWrap" class="hidden space-y-2">
+    <div class="flex justify-between text-xs text-slate-400 font-mono">
+      <span id="progressLabel" data-i18n="progressReading">Reading file...</span>
+      <span id="progressStats"></span>
+    </div>
+    <div class="w-full bg-base-800 rounded-full h-1.5 overflow-hidden">
+      <div id="progressBar" class="bg-accent h-1.5 w-0 transition-all"></div>
+    </div>
+  </div>
+
+  <div id="resultCard" class="hidden glass rounded-xl p-5 space-y-3 border border-line-800">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold text-sm" data-i18n="resultTitle">Scan result</h2>
+      <span id="statusBadge" class="text-xs px-2.5 py-1 rounded-full font-medium"></span>
+    </div>
+    <div class="text-sm space-y-1.5 text-slate-400">
+      <div><span data-i18n="fileNameLabel">File name</span>: <span id="rFileName" class="text-slate-200"></span></div>
+      <div><span data-i18n="fileSizeLabel">Size</span>: <span id="rFileSize" class="text-slate-200"></span></div>
+      <div class="break-all font-mono text-xs">SHA-256: <span id="rHash" class="text-accent/90"></span></div>
+      <div id="rDetections" class="hidden"><span data-i18n="detectionsLabel">Detections</span>: <span id="rDetCount" class="text-slate-200"></span></div>
+    </div>
+    <div id="rError" class="hidden text-amber-400/90 text-xs leading-relaxed"></div>
+  </div>
+
+  <section class="space-y-5">
+    <h3 class="font-semibold text-lg text-center" data-i18n="aboutTitle">How it works</h3>
+    <div class="grid sm:grid-cols-3 gap-3">
+      <div class="glass rounded-xl border border-line-800 p-4 space-y-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-accent"><path d="M12 2L3 6v6c0 5.25 3.6 9.74 9 11 5.4-1.26 9-5.75 9-11V6l-9-4z" stroke="currentColor" stroke-width="1.6"/></svg>
+        <p class="font-medium text-sm" data-i18n="card1Title">100% local scanning</p>
+        <p class="text-xs text-slate-500 leading-relaxed" data-i18n="card1Text">Your file is read in streamed chunks and never uploaded anywhere.</p>
+      </div>
+      <div class="glass rounded-xl border border-line-800 p-4 space-y-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-accent"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <p class="font-medium text-sm" data-i18n="card2Title">Instant SHA-256</p>
+        <p class="text-xs text-slate-500 leading-relaxed" data-i18n="card2Text">A cryptographic fingerprint is computed on-device, even for huge files.</p>
+      </div>
+      <div class="glass rounded-xl border border-line-800 p-4 space-y-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-accent"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <p class="font-medium text-sm" data-i18n="card3Title">Smart lookup, no upload</p>
+        <p class="text-xs text-slate-500 leading-relaxed" data-i18n="card3Text">Only the fingerprint is checked against threat databases like VirusTotal.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="w-full border-t border-line-800 px-5 sm:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+  <span class="inline-flex items-center gap-1.5 border border-line-800 rounded-full px-2.5 py-1">
+    <span class="w-1.5 h-1.5 rounded-full bg-accent pulse-dot"></span>
+    <span data-i18n="serverlessBadge">Serverless / Local</span>
+  </span>
+  <span class="flex items-center gap-1.5">
+    <span data-i18n="footerText">Built by</span>
+    <a href="https://github.com/mustafsyria2011-afk" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-slate-300 hover:text-accent transition">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 015.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.4-5.27 5.69.42.36.78 1.07.78 2.15v3.19c0 .3.21.66.79.55A10.52 10.52 0 0023.5 12c0-6.35-5.15-11.5-11.5-11.5z"/></svg>
+      github.com/mustafsyria2011-afk
+    </a>
+  </span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
